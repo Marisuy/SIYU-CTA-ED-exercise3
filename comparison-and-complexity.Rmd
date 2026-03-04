@@ -1,7 +1,7 @@
 ---
 title: "Computational Text Analysis - Exercise 3: Comparison and complexity"
-author: "[your name here]"
-date: "25/02/2026"
+author: "Siyu Zhou"
+date: "3/03/2026"
 output: html_document
 ---
 
@@ -295,5 +295,67 @@ ggplot(sum_corpus, aes(x=speaker, y=mean)) +
 ## Exercises
 
 1. Compute distance measures such as "euclidean" or "manhattan" for the MP tweets as above, comparing between tweets by MPs and tweets by PM, Theresa May. 
+```{r}
+ methods <- c("euclidean", "manhattan", "minkowski") 
+ 
+ 
+ testdf_all <- data.frame()
+ 
+ for (i in seq_along(methods)) {
+     
+     sim_method <- methods[[i]]
+    
+     test <- dfmat %>%
+         dfm_group(groups = username) %>%
+         textstat_dist(method = sim_method) 
+     
+     testm <- as.matrix(test) 
+        # 与 May 的距离 
+   testdf <- as.data.frame(testm[23, c(1:22, 24)])
+    
+   colnames(testdf) <- "dist_may"
+  testdf <- tibble::rownames_to_column(testdf, "username")
+   testdf$method <- sim_method
+   
+    testdf_all <- rbind(testdf_all, testdf)
+}
+
+ # visualize
+ggplot(testdf_all) +
+     geom_point(aes(x = reorder(username, dist_may), y = dist_may, color = method)) + 
+     coord_flip() +
+    xlab("MP username") +
+    ylab("Distance score (Lower is more similar)") + 
+     theme_minimal()
+```
 2. Estimate at least three other complexity measures for the EU speeches as above. Consider how the results compare to the Flesch-Kincaid measure used in the article by @schoonvelde_liberals_2019.
+```{r}
+readability_scores <- textstat_readability(speeches$text, measure = c("Flesch.Kincaid", "ARI", "Coleman.Liau", "SMOG"))
+
+# 将结果赋值回 speeches
+speeches$Flesch.Kincaid <- readability_scores$Flesch.Kincaid
+speeches$ARI <- readability_scores$ARI
+speeches$Coleman.Liau <- readability_scores$Coleman.Liau
+speeches$SMOG <- readability_scores$SMOG
+
+# 汇总所有指标
+sum_corpus <- speeches %>%
+  group_by(speaker) %>%
+  summarise(
+    mean_FK = mean(Flesch.Kincaid, na.rm=TRUE),
+    mean_ARI = mean(ARI, na.rm=TRUE),
+    mean_CL = mean(Coleman.Liau, na.rm=TRUE),
+    mean_SMOG = mean(SMOG, na.rm=TRUE)
+  )
+# 看其中一个，比如 ARI：
+ggplot(speeches, aes(x=speaker, y=ARI)) +
+  geom_bar(stat="summary", fun="mean") + # ggplot 统计均值
+  coord_flip() +
+  xlab("Speaker") +
+  ylab("Mean ARI Complexity") + 
+  theme_minimal()
+```
+
+
+
 3. (Advanced---optional) Estimate similarity scores between the MP tweets and the PM tweets for each week contained in the data. Plot the results. 
